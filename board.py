@@ -2,8 +2,6 @@ from player import *
 
 
 class Board:
-    depth = 10
-
     def __init__(self):
         self.NUM_TILES = 6
         self.scores = [0, 0]
@@ -97,7 +95,7 @@ class Board:
 
     def who_won(self):
         if not self.game_over():
-            return -1, 0
+            return -1, 0  # no one won
         else:
             score_diff = self.scores[0] - self.scores[1]
             if score_diff == 0:
@@ -106,15 +104,27 @@ class Board:
                 winner = 1 if score_diff > 0 else 2
                 return winner, score_diff
 
-    def eval_board(self):
-        winner, _ = self.who_won()
-        if winner == 1:  # player 1 (max) wins
-            return 100
-        elif winner == 2:
-            return -100
-        else:
-            # using heuristics
-            return self.scores[0] - self.scores[1] # reward if we have more points than opponent
+    def eval_board(self, num_player):
+        # winner, _ = self.who_won()
+        # if winner == 1:  # player 1 (max) wins
+        #     return 100
+        # elif winner == 2:
+        #     return -100
+        # else:
+        # using heuristics
+        score = (self.scores[0] - self.scores[1])*2  # reward if we have more points than opponent
+        score += len(self.possible_moves(num_player))  # we want to maximize num of potential moves
+        opp = 1 if num_player == 2 else 2
+        score -= (self.scores[opp-1])  # we want to minimize opponent's score
+
+        return score
+
+
+    def count_pebbles(self, tiles):
+        res = 0
+        for tile in tiles:
+            res += tile
+        return res
 
     def count_potential_captures(self, num_player):
         # find indexes of 0s
@@ -129,6 +139,37 @@ class Board:
                 res += 1
         return res
 
+    def alphabeta(self, depth, num_player, alpha, beta, move):
+        if depth == 0 or self.game_over():
+            return self.eval_board(num_player), move
+
+        if num_player == 1:
+            best_eval = -10000
+            max_move = -1
+            for move1 in self.possible_moves(num_player):
+                new_board = self.make_move(num_player, move1)
+                eval, _ = new_board.alphabeta(depth - 1, 2, alpha, beta, max_move)
+                if eval > best_eval:
+                    best_eval = eval
+                    max_move = move1
+                alpha = max(alpha, best_eval)
+                if beta <= alpha:
+                    break
+            return best_eval, max_move
+
+        if num_player == 2:
+            best_eval = 10000
+            min_move = -1
+            for move1 in self.possible_moves(num_player):
+                new_board = self.make_move(num_player, move1)
+                eval, _ = new_board.alphabeta(depth - 1, 1, alpha, beta, min_move)
+                if eval < best_eval:
+                    best_eval = eval
+                    min_move = move1
+                beta = min(beta, best_eval)
+                if beta <= alpha:
+                    break
+            return best_eval, min_move
 
     def minimax(self, depth, num_player, move):
         if depth == 0 or self.game_over():
